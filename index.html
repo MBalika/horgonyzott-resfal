@@ -165,7 +165,7 @@ h1,h2,h3,h4,.quiz-q{text-wrap:balance}
     <div class="sim">
       <div>
         <div class="svg-wrap"><svg id="wallSvg" viewBox="0 0 600 470" role="img" aria-label="Horgonyzott résfal földnyomásokkal"></svg></div>
-        <div class="svg-wrap" style="margin-top:.6rem"><svg id="momSvg" viewBox="0 0 600 150" role="img" aria-label="A résfal hajlító nyomatéka"></svg></div>
+        <div class="svg-wrap" style="margin-top:.6rem"><svg id="diagSvg" viewBox="0 0 600 470" role="img" aria-label="Földnyomás, nyíróerő és nyomaték a fal mentén"></svg></div>
       </div>
       <div>
         <div class="stage-name" id="stageName"></div>
@@ -271,7 +271,7 @@ function analyse(){
   // szabad vég: a nyomaték a fal alján ~0 legyen → lineáris drift levonása
   const m0=M[0], mL=M[n-1]; for(let i=0;i<n;i++) M[i]-=m0+(mL-m0)*i/(n-1);
   let Mmax=0; for(const v of M) if(Math.abs(v)>Mmax)Mmax=Math.abs(v);
-  return {Ltot,emb,Ka,Kp,Ea,Ep,Ah,A,FS,prof,M,Mmax,maxp,dz,n};
+  return {Ltot,emb,Ka,Kp,Ea,Ep,Ah,A,FS,prof,V,M,Mmax,maxp,dz,n};
 }
 
 /* ───────── rajz: fal + nyomásábrák + horgony ───────── */
@@ -336,21 +336,38 @@ function draw(r){
   g+='<text x="'+(W-8)+'" y="'+(top+plotH-4)+'" font-family="JetBrains Mono" font-size="10" font-weight="700" fill="#c2521f" text-anchor="end">aktív</text>';
   g+='<text x="8" y="'+(yOf(Ltot)-6).toFixed(1)+'" font-family="JetBrains Mono" font-size="10" font-weight="700" fill="#2e7d8a">passzív</text>';
   $("wallSvg").innerHTML=g;
-  drawMom(r,yOf,Ltot);
+  drawDiagrams(r);
 }
-function drawMom(r,yOf,Ltot){
-  const mL=44,mR=14, top=20, plotH=150-top-22, mid=top+plotH/2;
-  const sc=Math.min((plotH/2-6)/Math.max(r.Mmax,1),0.5);
-  const xOf=z=> mL+z/Ltot*(W-mL-mR);
+function drawDiagrams(r){
+  // három függőleges diagram a fal mellé, közös mélység-tengellyel (a fallal azonos lépték)
+  const vbW=600, top=46, bot=24, plotH=470-top-bot, mLab=42, zS=plotH/r.Ltot;
+  const yOf=z=> top+z*zS;
+  const cols=[
+    {t:'Földnyomás (nettó) [kPa]', c:'#9c6b3a', d:r.prof.map(s=>s.sa-s.sp)},
+    {t:'Nyíróerő V [kN/m]',        c:'#2e7d8a', d:r.V},
+    {t:'Nyomaték M [kNm/m]',       c:'#3d5a80', d:r.M}
+  ];
+  const colW=(vbW-mLab-8)/3;
   let g='';
-  g+='<line x1="'+mL+'" y1="'+mid+'" x2="'+(W-mR)+'" y2="'+mid+'" stroke="#cfc8ba" stroke-width="1"/>';
-  let pp='M'+mL+' '+mid;
-  for(let i=0;i<r.n;i++){ const z=(i+0.5)*r.dz; pp+=' L'+xOf(z).toFixed(1)+' '+(mid - r.M[i]*sc).toFixed(1); }
-  pp+=' L'+(W-mR)+' '+mid+' Z';
-  g+='<path d="'+pp+'" fill="#3d5a80" fill-opacity="0.22" stroke="#3d5a80" stroke-width="1.6"/>';
-  g+='<text x="'+mL+'" y="14" font-family="JetBrains Mono" font-size="11" font-weight="700" fill="#3d5a80">fal nyomatéka M(z)</text>';
-  g+='<text x="'+(W-mR)+'" y="14" font-family="JetBrains Mono" font-size="10.5" fill="#39465a" text-anchor="end">M_max = '+r.Mmax.toFixed(0)+' kNm/m</text>';
-  $("momSvg").innerHTML=g;
+  // közös mélység-rács + címkék
+  const zstep=Math.max(1,Math.round(r.Ltot/6));
+  g+='<text x="'+(mLab-4)+'" y="'+(top-6)+'" font-family="JetBrains Mono" font-size="9" fill="#6b788c" text-anchor="end">z[m]</text>';
+  for(let z=0;z<=r.Ltot+0.01;z+=zstep){ const y=yOf(z);
+    g+='<line x1="'+mLab+'" y1="'+y.toFixed(1)+'" x2="'+(vbW-6)+'" y2="'+y.toFixed(1)+'" stroke="#f1f1ec" stroke-width="1"/>';
+    g+='<text x="'+(mLab-4)+'" y="'+(y+3).toFixed(1)+'" font-family="JetBrains Mono" font-size="8.5" fill="#9aa3ad" text-anchor="end">'+z+'</text>';
+  }
+  cols.forEach((col,ci)=>{
+    const x0=mLab+ci*colW, pw=colW-14, xc=x0+pw/2;
+    const maxAbs=Math.max(...col.d.map(v=>Math.abs(v)),1e-6), sc=(pw/2-5)/maxAbs;
+    g+='<line x1="'+xc.toFixed(1)+'" y1="'+top+'" x2="'+xc.toFixed(1)+'" y2="'+(top+plotH).toFixed(1)+'" stroke="#cfc8ba" stroke-width="1"/>';
+    let pp='M'+xc.toFixed(1)+' '+top;
+    for(let i=0;i<r.n;i++){ const z=(i+0.5)*r.dz; pp+=' L'+(xc+col.d[i]*sc).toFixed(1)+' '+yOf(z).toFixed(1); }
+    pp+=' L'+xc.toFixed(1)+' '+(top+plotH).toFixed(1)+' Z';
+    g+='<path d="'+pp+'" fill="'+col.c+'" fill-opacity="0.24" stroke="'+col.c+'" stroke-width="1.5"/>';
+    g+='<text x="'+xc.toFixed(1)+'" y="'+(top-20)+'" font-family="JetBrains Mono" font-size="9.5" font-weight="700" fill="'+col.c+'" text-anchor="middle">'+col.t+'</text>';
+    g+='<text x="'+xc.toFixed(1)+'" y="'+(top-9)+'" font-family="JetBrains Mono" font-size="8.5" fill="#6b788c" text-anchor="middle">max '+maxAbs.toFixed(0)+'</text>';
+  });
+  $("diagSvg").innerHTML=g;
 }
 
 /* ───────── állapot ───────── */
