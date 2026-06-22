@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horgonyzott résfal — fázisos kiemelés · Talaj–szerkezet kölcsönhatás</title>
+<style>
+:root{
+  --paper:#eef0f4; --card:#f9fafc; --grid:rgba(40,55,90,0.05); --line:#d6dbe4;
+  --ink:#16202e; --ink2:#39465a; --ink3:#6b788c;
+  --accent:#3d5a80; --accent-soft:#dde5f0;
+  --active:#c2521f; --active-soft:#f6e2d6; --passive:#2e7d8a; --passive-soft:#d8eef0;
+  --anchor:#c79a2e; --anchor-soft:#f5ead0;
+  --soil:#e3d9c6; --soil-line:#b9a888; --soil2:#d2c09e; --wall:#9aa3ad; --wall-line:#5f6973;
+  --ok:#2e7d4f; --warn:#b87514; --danger:#a32626;
+  --mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  --body:'Segoe UI',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--body);background:var(--paper);color:var(--ink);font-size:16px;line-height:1.7}
+.bg{position:fixed;inset:0;z-index:-1;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:30px 30px;}
+nav{position:sticky;top:0;z-index:300;height:54px;background:rgba(238,240,244,0.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:1.2rem;padding:0 1.5rem;}
+.nav-logo{font-family:var(--body);font-weight:800;font-size:14px;letter-spacing:.05em;color:var(--accent);white-space:nowrap;text-transform:uppercase}
+.nav-links{display:flex;overflow-x:auto;scrollbar-width:none}.nav-links::-webkit-scrollbar{display:none}
+.nav-link{padding:0 12px;height:54px;display:flex;align-items:center;font-size:13.5px;font-weight:500;color:var(--ink3);text-decoration:none;border-bottom:2px solid transparent;white-space:nowrap;transition:color .2s,border-color .2s;}
+.nav-link:hover{color:var(--ink)}.nav-link.active{color:var(--accent);border-bottom-color:var(--accent)}
+header.hero{max-width:1040px;margin:0 auto;padding:4rem 1.5rem 2rem}
+.hero-eyebrow{font-family:var(--mono);font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:1rem;}
+.hero h1{font-family:var(--body);font-weight:900;letter-spacing:-0.015em;font-size:clamp(2.2rem,6vw,4rem);line-height:1.04;color:var(--ink);}
+.hero h1 .thin{font-weight:300;color:var(--ink2)}
+.hero-sub{margin-top:1.3rem;font-size:1.06rem;color:var(--ink2)}
+section{max-width:1040px;margin:0 auto;padding:3rem 1.5rem .6rem}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:.7rem;margin-bottom:.7rem;}
+.eyebrow::after{content:'';height:1px;flex:1;background:var(--line)}
+h2{font-family:var(--body);font-weight:800;font-size:clamp(1.5rem,3.5vw,2.1rem);letter-spacing:-0.01em;margin-bottom:1rem;color:var(--ink)}
+h4{font-family:var(--body);font-weight:700;font-size:.98rem;margin-bottom:.4rem;display:flex;align-items:center;gap:.5rem}
+.lead{font-size:1.05rem;color:var(--ink2);margin-bottom:1.2rem}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin:1.4rem 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:1.1rem 1.2rem}
+.card p{font-size:.95rem;color:var(--ink2)}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.dot.active{background:var(--active)}.dot.passive{background:var(--passive)}.dot.anchor{background:var(--anchor)}
+.formula{font-family:var(--mono);background:var(--card);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;padding:.9rem 1.2rem;margin:1.2rem 0;font-size:.98rem;overflow-x:auto;}
+.note{background:var(--accent-soft);border:1px solid #c2d2e6;border-radius:10px;padding:.9rem 1.2rem;margin:1.2rem 0;font-size:.95rem;color:var(--ink2);}
+.note strong{color:var(--accent)}
+.note.warn{background:var(--active-soft);border-color:#e7c4ab}.note.warn strong{color:var(--active)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1.4rem;margin:1.6rem 0;box-shadow:0 2px 14px rgba(20,35,60,.05)}
+.sim{display:grid;grid-template-columns:1.5fr 1fr;gap:1.2rem;align-items:start}
+@media(max-width:880px){.sim{grid-template-columns:1fr}}
+.svg-wrap{background:#fff;border:1px solid var(--line);border-radius:10px;padding:.4rem;overflow:hidden}
+.svg-wrap svg{display:block;max-width:100%;height:auto}
+.statusbar{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.5rem}
+.chip{font-family:var(--mono);font-size:11.5px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:.35rem .6rem;color:var(--ink2)}
+.chip b{color:var(--ink)}
+.chip.hot{border-color:#e7c4ab;background:var(--active-soft)}
+.stage-name{font-family:var(--mono);font-size:12.5px;font-weight:700;color:#fff;background:var(--accent);border-radius:8px;padding:.5rem .7rem;text-align:center;margin-bottom:.6rem}
+.seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin:.2rem 0}
+.seg button{flex:1;border:none;background:#fff;padding:8px 3px;font-size:11.5px;font-weight:600;color:var(--ink3);cursor:pointer;font-family:inherit;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:none}.seg button[aria-pressed=true]{background:var(--accent);color:#fff}
+.btn-row{display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0 .2rem}
+.btn{font-family:var(--body);font-weight:700;font-size:.86rem;padding:.5rem 1rem;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+.btn:hover{opacity:.92}.btn.ghost{background:transparent;color:var(--accent)}
+.ctrl{display:flex;flex-direction:column;gap:.25rem;margin-bottom:.55rem}
+.ctrl label{font-family:var(--mono);font-size:11px;letter-spacing:.03em;color:var(--ink3);display:block;overflow:hidden}
+.ctrl label .val{color:var(--ink);font-weight:600;float:right}
+.ctrl-grid{display:grid;grid-template-columns:1fr 1fr;gap:.2rem .9rem}
+input[type=range]{width:100%;accent-color:var(--accent);height:22px}
+.fbadge{font-family:var(--mono);font-size:11px;font-weight:700;padding:.1rem .45rem;border-radius:6px;margin-left:.3rem}
+.fbadge.safe{background:#e2f1e8;color:var(--ok)}.fbadge.unsafe{background:#f7e3e3;color:var(--danger)}
+table{width:100%;border-collapse:collapse;margin:1.2rem 0;font-size:.9rem;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th,td{padding:.55rem .8rem;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--accent-soft);color:var(--ink);font-family:var(--body);font-weight:700;font-size:.82rem}
+td.m{font-family:var(--mono);font-size:.85rem}
+.quiz-box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1.6rem;margin:1.6rem 0}
+.quiz-q{font-family:var(--body);font-weight:700;font-size:1.05rem;margin-bottom:1rem}
+.quiz-opts{display:flex;flex-direction:column;gap:.5rem}
+.quiz-opt{text-align:left;font-family:var(--body);font-size:.96rem;padding:.7rem 1rem;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:pointer;color:var(--ink2)}
+.quiz-opt:hover:not(:disabled){border-color:var(--accent);background:var(--accent-soft)}
+.quiz-opt.correct{border-color:var(--ok);background:#e2f1e8;color:var(--ink);font-weight:600}
+.quiz-opt.wrong{border-color:var(--danger);background:#f7e3e3;color:var(--ink)}
+.quiz-expl{margin-top:1rem;padding:.9rem 1.1rem;border-radius:10px;background:var(--passive-soft);border:1px solid #b9dde2;font-size:.93rem;color:var(--ink2);display:none}
+.quiz-expl.show{display:block}
+.qbar{display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:12px;color:var(--ink3);margin-bottom:1rem}
+.progress-track{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-bottom:1.1rem}
+.progress-fill{height:100%;background:var(--accent);width:0;transition:width .3s}
+footer{max-width:1040px;margin:3rem auto 0;padding:2rem 1.5rem 3rem;border-top:1px solid var(--line);font-size:.85rem;color:var(--ink3);font-family:var(--mono)}
+.reveal{opacity:0;transform:translateY(16px);transition:opacity .6s ease,transform .6s ease}.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.reveal{opacity:1;transform:none;transition:none}}
+/* támogatói logó sáv */
+.funding-bar{background:#fff;text-align:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+.funding-bar img{max-width:520px;width:100%;height:auto;display:inline-block;vertical-align:middle}
+/* Magyar tipográfia */
+body{text-wrap:pretty}
+p,li,figcaption,blockquote,dd,.lead,.note,.card p,.hero-sub{text-wrap:pretty;hyphens:none}
+h1,h2,h3,h4,.quiz-q{text-wrap:balance}
+.formula,.eq{white-space:nowrap;overflow-x:auto}
+.formula small,.eq small{white-space:normal}
+.nowrap{white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="funding-bar"><img src="logo.jpg" alt="Széchenyi Terv Plusz · Magyarország Kormánya · Az Európai Unió finanszírozásával — NextGeneration EU" loading="eager"></div>
+<div class="bg"></div>
+
+<nav>
+  <span class="nav-logo">Talaj–szerkezet · Résfal</span>
+  <div class="nav-links">
+    <a class="nav-link" href="#bev">Bevezetés</a>
+    <a class="nav-link" href="#nyomas">Földnyomások</a>
+    <a class="nav-link" href="#fazisok">Építési fázisok</a>
+    <a class="nav-link" href="#szim">Szimulátor</a>
+    <a class="nav-link" href="#tonkre">Tönkremenetel</a>
+    <a class="nav-link" href="#kviz">Kvíz</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="hero-eyebrow">Talaj és szerkezet kölcsönhatás · Munkatérhatárolás</div>
+  <h1>Horgonyzott résfal<br><span class="thin">— fázisos kiemelés</span></h1>
+  <p class="hero-sub">Egy mély munkagödör függőleges falát <strong>résfal</strong> támasztja meg, amelyet a&nbsp;tetejéhez közel egy <strong>talajhorgony</strong> tart vissza. A&nbsp;fal mögött <strong>aktív</strong> földnyomás nyom kifelé, a&nbsp;munkagödör felőli, befogott szakaszon <strong>passzív</strong> földellenállás tart ellen, a&nbsp;különbséget a&nbsp;horgony veszi fel. Lent élő szimulátorban lépegethetsz az&nbsp;építési fázisokon — és látod, miért a&nbsp;<strong>teljes kiemelés a&nbsp;mértékadó</strong>.</p>
+</header>
+
+<main>
+
+<section id="bev" class="reveal">
+  <div class="eyebrow">1 · Mi tartja a falat?</div>
+  <h2>Aktív nyomás, passzív ellenállás, horgonyerő</h2>
+  <p class="lead">A&nbsp;résfal egy beton munkatérhatároló szerkezet, amit a&nbsp;földkiemelés előtt készítenek el a&nbsp;talajba. A&nbsp;mögötte lévő földtömeg <strong>kifelé</strong> nyomja (aktív földnyomás). Két dolog tartja vissza: a&nbsp;munkagödör alatti, <strong>befogott</strong> falszakasz előtti <strong>passzív</strong> földellenállás, és a&nbsp;fal felső részén egy ferdén lehorgonyzott, előfeszített <strong>talajhorgony</strong>.</p>
+  <div class="cards">
+    <div class="card"><h4><span class="dot active"></span>Aktív földnyomás</h4><p>A&nbsp;fal mögött, a&nbsp;teljes magasságon. <span class="nowrap">σ<sub>a</sub> = K<sub>a</sub>·(γ·z + q)</span>, lefelé nő. Ez a&nbsp;<strong>kifelé toló</strong> hatás.</p></div>
+    <div class="card"><h4><span class="dot passive"></span>Passzív ellenállás</h4><p>A&nbsp;munkagödör felőli oldalon, a&nbsp;kiemelési szint <strong>alatti befogásban</strong>. <span class="nowrap">σ<sub>p</sub> = K<sub>p</sub>·γ·ζ</span>. Ez tartja meg a&nbsp;fal lábát.</p></div>
+    <div class="card"><h4><span class="dot anchor"></span>Talajhorgony</h4><p>A&nbsp;fal tetejéhez közel, ferdén a&nbsp;talajba fúrva, injektált <strong>gyökérrel</strong> lehorgonyozva, előfeszítve. A&nbsp;<strong>vízszintes egyensúly</strong> hiányzó részét veszi fel.</p></div>
+  </div>
+</section>
+
+<section id="nyomas" class="reveal">
+  <div class="eyebrow">2 · Az erőjáték</div>
+  <h2>Szabad megtámasztás (free earth support)</h2>
+  <p class="lead">A&nbsp;befogott, horgonyzott falat a&nbsp;legegyszerűbben a&nbsp;<strong>szabad megtámasztás</strong> modelljével méretezzük: a&nbsp;fal lába „szabadon" elfordulhat, a&nbsp;befogás csak a&nbsp;passzív ellenállást adja. Két feltétel:</p>
+  <div class="formula">Vízszintes egyensúly: &nbsp; A<sub>h</sub> = E<sub>a</sub> − E<sub>p</sub><br>Nyomatéki egyensúly a&nbsp;horgonyra: &nbsp; M<sub>passzív</sub> = M<sub>aktív</sub> → a&nbsp;szükséges befogás<br><small>A<sub>h</sub> — a&nbsp;horgonyerő vízszintes összetevője, E<sub>a</sub> / E<sub>p</sub> — az&nbsp;aktív / passzív földnyomás eredője. A&nbsp;befogás akkor elég, ha a&nbsp;passzív ellenállás kellő biztonsággal felülmúlja az&nbsp;aktívat (a&nbsp;horgony körüli nyomatékokra).</small></div>
+  <div class="note"><strong>Falsúrlódás.</strong> A&nbsp;fal mindkét oldalán fellép a&nbsp;talaj–fal súrlódás <span class="nowrap">(δ ≈ ⅔·φ′)</span>, ami a&nbsp;passzív együtthatót (K<sub>p</sub>) jelentősen megnöveli — a&nbsp;szimulátorban Rankine-féle (δ = 0) közelítéssel számolunk, ami a&nbsp;biztonság javára téved a&nbsp;passzív oldalon.</div>
+</section>
+
+<section id="fazisok" class="reveal">
+  <div class="eyebrow">3 · Lépésről lépésre</div>
+  <h2>Az építési menet — és miért a teljes kiemelés a mértékadó</h2>
+  <p class="lead">A&nbsp;résfalat nem egyszerre terheljük: a&nbsp;munkagödröt szakaszosan mélyítjük. Ahogy <strong>lejjebb ásunk</strong>, a&nbsp;befogás (a&nbsp;kiemelés alatti falszakasz) <strong>rövidül</strong>, így a&nbsp;passzív ellenállás csökken — a&nbsp;horgonyerő és a&nbsp;fal nyomatéka pedig <strong>nő</strong>. Ezért a&nbsp;<strong>teljes kiemelés</strong> (a&nbsp;horgony már működik) a&nbsp;mértékadó állapot.</p>
+  <table>
+    <thead><tr><th>Fázis</th><th>Mi történik</th><th>Megtámasztás</th></tr></thead>
+    <tbody>
+      <tr><td class="m"><b>1</b></td><td>Földkiemelés a&nbsp;horgonyzási szintig</td><td>befogás (konzolként)</td></tr>
+      <tr><td class="m"><b>2</b></td><td>Horgony beépítése és <strong>megfeszítése</strong></td><td>befogás + horgony</td></tr>
+      <tr><td class="m"><b>3</b></td><td><strong>Teljes földkiemelés</strong> (horgony működik)</td><td>befogás + horgony — <strong>mértékadó</strong></td></tr>
+      <tr><td class="m"><b>4</b></td><td>Födémek beépítése, horgony levágása</td><td>befogás + födémtámasz</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="szim" class="reveal">
+  <div class="eyebrow">4 · A fő attrakció</div>
+  <h2>Interaktív résfal-szimulátor</h2>
+  <p class="lead">Lépegess az&nbsp;<strong>építési fázisokon</strong> (vagy indítsd el az&nbsp;animációt), és állítsd a&nbsp;geometriát és a&nbsp;talajt. Élőben látod az&nbsp;<strong>aktív és passzív nyomásábrát</strong>, a&nbsp;<strong>horgonyerőt</strong>, a&nbsp;befogás biztonságát és a&nbsp;fal <strong>nyomatéki ábráját</strong>.</p>
+  <div class="panel">
+    <div class="sim">
+      <div>
+        <div class="svg-wrap"><svg id="wallSvg" viewBox="0 0 600 470" role="img" aria-label="Horgonyzott résfal földnyomásokkal"></svg></div>
+        <div class="svg-wrap" style="margin-top:.6rem"><svg id="momSvg" viewBox="0 0 600 150" role="img" aria-label="A résfal hajlító nyomatéka"></svg></div>
+      </div>
+      <div>
+        <div class="stage-name" id="stageName"></div>
+        <div class="statusbar" id="statusBar"></div>
+        <div class="seg" id="stageSeg" role="group">
+          <button data-s="1" aria-pressed="false">1. Horgonyszintig</button>
+          <button data-s="2" aria-pressed="false">2. Feszítés</button>
+          <button data-s="3" aria-pressed="true">3. Teljes</button>
+          <button data-s="4" aria-pressed="false">4. Födém</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="playBtn">▶ Építési menet</button>
+          <button class="btn ghost" id="resetBtn">↺ Alaphelyzet</button>
+        </div>
+        <div class="ctrl-grid">
+          <div class="ctrl"><label>Kiemelési mélység H [m] <span class="val" id="hV"></span></label><input type="range" id="H" min="4" max="14" step="0.5"></div>
+          <div class="ctrl"><label>Befogás d [m] <span class="val" id="dV"></span></label><input type="range" id="d" min="2" max="10" step="0.5"></div>
+          <div class="ctrl"><label>Horgony szintje z<sub>a</sub> [m] <span class="val" id="zaV"></span></label><input type="range" id="za" min="0.5" max="5" step="0.25"></div>
+          <div class="ctrl"><label>Horgony dőlése α [°] <span class="val" id="alV"></span></label><input type="range" id="al" min="0" max="45" step="5"></div>
+          <div class="ctrl"><label>φ′ [°] <span class="val" id="phiV"></span></label><input type="range" id="phi" min="20" max="40" step="1"></div>
+          <div class="ctrl"><label>c′ [kPa] <span class="val" id="cV"></span></label><input type="range" id="c" min="0" max="30" step="1"></div>
+          <div class="ctrl"><label>γ talaj [kN/m³] <span class="val" id="gV"></span></label><input type="range" id="gam" min="16" max="21" step="0.5"></div>
+          <div class="ctrl"><label>Felszíni teher q [kPa] <span class="val" id="qV"></span></label><input type="range" id="q" min="0" max="50" step="5"></div>
+        </div>
+        <p style="font-size:.85rem;margin-top:.5rem">A&nbsp;fal mögött (jobbra) az&nbsp;<span style="color:var(--active);font-weight:700">aktív</span>, a&nbsp;munkagödör felől (balra, a&nbsp;befogásban) a&nbsp;<span style="color:var(--passive);font-weight:700">passzív</span> nyomásábra; sárga a&nbsp;<span style="color:var(--anchor);font-weight:700">horgony</span>. Alul a&nbsp;fal hajlító nyomatéka.</p>
+      </div>
+    </div>
+  </div>
+  <div class="note warn"><strong>Próbáld ki:</strong> indítsd el az&nbsp;<strong>építési menetet</strong> — ahogy mélyül a&nbsp;gödör, a&nbsp;befogás rövidül, a&nbsp;<strong>horgonyerő és a&nbsp;nyomaték nő</strong>. Csökkentsd a&nbsp;<strong>befogást (d)</strong> — előbb-utóbb a&nbsp;passzív biztonság 1,0 alá esik (a&nbsp;fal lába „kirúg"). Növeld a&nbsp;<strong>φ′-t</strong> — nő a&nbsp;passzív ellenállás, csökken az&nbsp;aktív nyomás.</div>
+</section>
+
+<section id="tonkre" class="reveal">
+  <div class="eyebrow">5 · Mire kell vigyázni</div>
+  <h2>Tönkremeneteli módok</h2>
+  <p class="lead">Egy horgonyzott résfalnál többféle határállapotot kell ellenőrizni — a&nbsp;talaj és a&nbsp;szerkezet együtt:</p>
+  <div class="cards">
+    <div class="card"><h4>Befogás kimerülése</h4><p>A&nbsp;passzív ellenállás nem elég → a&nbsp;fal lába <strong>kirúg</strong>, a&nbsp;fal elfordul. Elvárt biztonság a&nbsp;passzív oldalon.</p></div>
+    <div class="card"><h4>Horgony kihúzódása</h4><p>A&nbsp;gyökér (injektált befogási hossz) talajbeli ellenállása kimerül → a&nbsp;horgony <strong>kicsúszik</strong>.</p></div>
+    <div class="card"><h4>Horgonyszár / fej</h4><p>A&nbsp;feszítőszál <strong>szakadása</strong>, a&nbsp;horgonyfej törése, vagy a&nbsp;fal <strong>átszúródása</strong> a&nbsp;horgonyfejnél.</p></div>
+    <div class="card"><h4>Résfal törése</h4><p>A&nbsp;fal vasbeton keresztmetszetének tönkremenetele a&nbsp;<strong>M, N, V</strong> igénybevételekből (a&nbsp;max. nyomatékot a&nbsp;szimulátor mutatja).</p></div>
+    <div class="card"><h4>Felszínsüllyedés</h4><p>A&nbsp;fal mögött a&nbsp;lazuló földtömeg miatt <strong>felszínsüllyedés</strong> keletkezhet — épület-, közmű-károsodás. Monitoring!</p></div>
+    <div class="card"><h4>Előfeszítés</h4><p>Az&nbsp;ideiglenes horgonyt a&nbsp;tervezési érték <strong>~115%-ára</strong> feszítik rá (MSZ EN 1537), a&nbsp;veszteségeket pótolva.</p></div>
+  </div>
+</section>
+
+<section id="kviz" class="reveal">
+  <div class="eyebrow">6 · Tudáspróba</div>
+  <h2>Kvíz — 10 kérdés</h2>
+  <div class="quiz-box">
+    <div class="qbar"><span id="qCount"></span><span id="qScoreLive"></span></div>
+    <div class="progress-track"><div class="progress-fill" id="qProg"></div></div>
+    <div id="quizMain">
+      <div class="quiz-q" id="qText"></div>
+      <div class="quiz-opts" id="qOpts"></div>
+      <div class="quiz-expl" id="qExpl"></div>
+      <button class="btn" id="qNext" style="display:none;margin-top:1rem">Következő →</button>
+    </div>
+    <div id="quizResult" style="display:none;text-align:center">
+      <div style="font-family:var(--body);font-weight:800;font-size:1.5rem;margin:.5rem 0" id="qFinal"></div>
+      <div id="qMsg" style="color:var(--ink2);margin-bottom:1rem"></div>
+      <button class="btn" id="qRestart">Újra</button>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Horgonyzott résfal — fázisos kiemelés · Talaj és szerkezet kölcsönhatás · interaktív tananyag · Geotechnika. A&nbsp;modell szemléltető (szabad megtámasztás, Rankine-földnyomás, homogén talaj, víz nélkül); valós tervezés: MSZ EN 1997 (EC7), MSZ EN 1537/1538 és részletes (pl. rugalaras/végeselemes) számítás.
+</footer>
+
+<script>
+const $=id=>document.getElementById(id);
+const S={H:9,d:5,za:2,al:20,phi:30,c:0,gam:19,q:15,stage:3};
+const DEF=Object.assign({},S);
+const D=Math.PI/180;
+let He=9;            // aktuális kiemelési mélység (animációhoz)
+let anchorOn=true, propMode=false, playRAF=0;
+
+/* ───────── statika: szabad megtámasztás ───────── */
+function analyse(){
+  const Ltot=S.H+S.d, emb=Math.max(0.1,Ltot-He);   // teljes falhossz fix; befogás = Ltot − He
+  const phi=S.phi*D, Ka=(1-Math.sin(phi))/(1+Math.sin(phi)), Kp=(1+Math.sin(phi))/(1-Math.sin(phi));
+  const sKa=Math.sqrt(Ka), sKp=Math.sqrt(Kp);
+  const n=160, dz=Ltot/n; const prof=[]; let Ea=0,Ep=0,maxp=0;
+  for(let i=0;i<n;i++){ const z=(i+0.5)*dz;
+    let sa=Ka*(S.gam*z+S.q)-2*S.c*sKa; if(sa<0)sa=0;
+    let sp=0; if(z>He){ const zeta=z-He; sp=Kp*S.gam*zeta+2*S.c*sKp; }
+    prof.push({z,sa,sp}); Ea+=sa*dz; Ep+=sp*dz; if(sa>maxp)maxp=sa; if(sp>maxp)maxp=sp;
+  }
+  // horgonyerő (vízszintes egyensúly): a horgony veszi fel az aktív és passzív különbségét
+  const Ah = anchorOn? Math.max(0, Ea-Ep) : 0;
+  const A  = anchorOn? Ah/Math.cos(S.al*D) : 0;
+  // befogás biztonsága: nyomatékok a horgonyra (anchorOn) vagy a fal tetejére (konzol)
+  const pivot = anchorOn? S.za : 0;
+  let Mdrv=0, Mres=0;
+  for(const s of prof){ const lev=s.z-pivot; if(s.sa>0) Mdrv+=s.sa*lev*dz; Mres+=s.sp*lev*dz; }
+  const FS = Mdrv>0? Mres/Mdrv : 99;
+  // hajlító nyomaték a fal mentén: w(z)=sa−sp (kifelé poz.), horgony A_h befelé za-nál
+  const V=[],M=[]; let vv=0;
+  for(let i=0;i<n;i++){ const z=(i+0.5)*dz; vv+=(prof[i].sa-prof[i].sp)*dz; if(anchorOn && z>=S.za && (z-dz/2)<=S.za) vv-=Ah; V.push(vv); }
+  let mm=0; for(let i=0;i<n;i++){ mm+=V[i]*dz; M.push(mm); }
+  // szabad vég: a nyomaték a fal alján ~0 legyen → lineáris drift levonása
+  const m0=M[0], mL=M[n-1]; for(let i=0;i<n;i++) M[i]-=m0+(mL-m0)*i/(n-1);
+  let Mmax=0; for(const v of M) if(Math.abs(v)>Mmax)Mmax=Math.abs(v);
+  return {Ltot,emb,Ka,Kp,Ea,Ep,Ah,A,FS,prof,M,Mmax,maxp,dz,n};
+}
+
+/* ───────── rajz: fal + nyomásábrák + horgony ───────── */
+const W=600,Hc=470;
+function draw(r){
+  const top=46, bot=24, plotH=Hc-top-bot;
+  const Ltot=r.Ltot, zS=plotH/Ltot;
+  const yOf=z=> top+z*zS;
+  const wx0=262, wx1=278;            // fal (hátlap jobbra, x=wx1; munkagödör balra)
+  const pSc=Math.min(70/Math.max(r.maxp,1),3.2);
+  let g='';
+  // háttöltés (jobb oldal, teljes magasság)
+  g+='<rect x="'+wx1+'" y="'+top+'" width="'+(W-wx1)+'" height="'+plotH+'" fill="#e3d9c6"/>';
+  // előtér (bal): talaj csak a kiemelés alatt (befogás)
+  g+='<rect x="0" y="'+top+'" width="'+wx0+'" height="'+(yOf(He)-top)+'" fill="#fff"/>';           // kiemelt (üres)
+  g+='<rect x="0" y="'+yOf(He).toFixed(1)+'" width="'+wx0+'" height="'+(yOf(Ltot)-yOf(He)).toFixed(1)+'" fill="#d2c09e"/>'; // befogás előtti talaj
+  g+='<rect x="0" y="'+yOf(Ltot).toFixed(1)+'" width="'+W+'" height="'+(Hc-bot-yOf(Ltot)).toFixed(1)+'" fill="#d2c09e"/>'; // fal alatt
+  // felszínvonalak
+  g+='<line x1="'+wx1+'" y1="'+top+'" x2="'+W+'" y2="'+top+'" stroke="#8c7a55" stroke-width="1.5"/>';
+  g+='<line x1="0" y1="'+yOf(He).toFixed(1)+'" x2="'+wx0+'" y2="'+yOf(He).toFixed(1)+'" stroke="#8c7a55" stroke-width="1.5"/>';
+  g+='<text x="6" y="'+(yOf(He)-5).toFixed(1)+'" font-family="JetBrains Mono" font-size="10" fill="#6b788c">munkagödör (H='+He.toFixed(1)+' m)</text>';
+  // PASSZÍV nyomásábra (bal, a kiemelés alatt)
+  let pp='';
+  for(const s of r.prof){ if(s.sp<=0)continue; }
+  pp='M'+wx0+' '+yOf(He).toFixed(1);
+  for(const s of r.prof){ if(s.z<He)continue; pp+=' L'+(wx0-s.sp*pSc).toFixed(1)+' '+yOf(s.z).toFixed(1); }
+  pp+=' L'+wx0+' '+yOf(Ltot).toFixed(1)+' Z';
+  g+='<path d="'+pp+'" fill="#2e7d8a" fill-opacity="0.32" stroke="#2e7d8a" stroke-width="1.4"/>';
+  // AKTÍV nyomásábra (jobb, teljes magasság)
+  let pa='M'+wx1+' '+top;
+  for(const s of r.prof){ pa+=' L'+(wx1+s.sa*pSc).toFixed(1)+' '+yOf(s.z).toFixed(1); }
+  pa+=' L'+wx1+' '+yOf(Ltot).toFixed(1)+' Z';
+  g+='<path d="'+pa+'" fill="#c2521f" fill-opacity="0.30" stroke="#c2521f" stroke-width="1.4"/>';
+  // felszíni teher q nyilai (háttöltésen)
+  if(S.q>0){ for(let x=wx1+18;x<W-10;x+=34){ g+='<line x1="'+x+'" y1="'+(top-13)+'" x2="'+x+'" y2="'+(top-2)+'" stroke="#7a4a12" stroke-width="1.1"/><path d="M'+(x-3)+' '+(top-5)+' L'+(x+3)+' '+(top-5)+' L'+x+' '+(top-1)+' z" fill="#7a4a12"/>'; }
+    g+='<text x="'+(W-10)+'" y="'+(top-16)+'" font-family="JetBrains Mono" font-size="10" fill="#7a4a12" text-anchor="end">q='+S.q+' kPa</text>'; }
+  // RÉSFAL
+  g+='<rect x="'+wx0+'" y="'+top+'" width="'+(wx1-wx0)+'" height="'+plotH+'" fill="#9aa3ad" stroke="#5f6973" stroke-width="1.2"/>';
+  // HORGONY vagy FÖDÉMTÁMASZ
+  if(anchorOn && !propMode){
+    const yA=yOf(S.za), ax=wx1, ang=-S.al*D;
+    const L1=120, L2=70;                              // szabad + gyökérhossz (kép)
+    const x1=ax+L1*Math.cos(ang), y1=yA+L1*Math.sin(ang);
+    const x2=x1+L2*Math.cos(ang), y2=y1+L2*Math.sin(ang);
+    g+='<line x1="'+ax+'" y1="'+yA.toFixed(1)+'" x2="'+x1.toFixed(1)+'" y2="'+y1.toFixed(1)+'" stroke="#c79a2e" stroke-width="2.4"/>';     // szabad hossz
+    g+='<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'" stroke="#9c7a1e" stroke-width="6" stroke-linecap="round"/>'; // gyökér (injektált)
+    g+='<circle cx="'+ax+'" cy="'+yA.toFixed(1)+'" r="4.5" fill="#c79a2e" stroke="#6b5410" stroke-width="1"/>';     // horgonyfej
+    // horgonyerő nyíl + felirat
+    g+='<text x="'+(x1+6).toFixed(1)+'" y="'+(y1-6).toFixed(1)+'" font-family="JetBrains Mono" font-size="11" font-weight="700" fill="#9c7a1e">A = '+r.A.toFixed(0)+' kN/m</text>';
+    g+='<text x="'+(x2+4).toFixed(1)+'" y="'+(y2+12).toFixed(1)+'" font-family="JetBrains Mono" font-size="9" fill="#9c7a1e">gyökér</text>';
+  } else if(propMode){
+    // födémtámaszok (vízszintes dúcok a munkagödör felé)
+    for(const zl of [S.za, S.za+ (He-S.za)*0.55]){ const y=yOf(zl);
+      g+='<line x1="'+(wx0-70)+'" y1="'+y.toFixed(1)+'" x2="'+wx0+'" y2="'+y.toFixed(1)+'" stroke="#5f6973" stroke-width="5"/>';
+      g+='<rect x="'+(wx0-78)+'" y="'+(y-7).toFixed(1)+'" width="8" height="14" fill="#5f6973"/>'; }
+    g+='<text x="'+(wx0-74)+'" y="'+(yOf(S.za)-9).toFixed(1)+'" font-family="JetBrains Mono" font-size="10" fill="#39465a">födém</text>';
+  }
+  // fal lába jel + befogás méret
+  g+='<line x1="'+(wx1+4)+'" y1="'+yOf(He).toFixed(1)+'" x2="'+(wx1+4)+'" y2="'+yOf(Ltot).toFixed(1)+'" stroke="#39465a" stroke-width="1" stroke-dasharray="2 2"/>';
+  g+='<text x="'+(wx1+7)+'" y="'+yOf((He+Ltot)/2).toFixed(1)+'" font-family="JetBrains Mono" font-size="9" fill="#39465a">befogás d='+r.emb.toFixed(1)+'</text>';
+  // ábra-feliratok
+  g+='<text x="'+(W-8)+'" y="'+(top+plotH-4)+'" font-family="JetBrains Mono" font-size="10" font-weight="700" fill="#c2521f" text-anchor="end">aktív</text>';
+  g+='<text x="8" y="'+(yOf(Ltot)-6).toFixed(1)+'" font-family="JetBrains Mono" font-size="10" font-weight="700" fill="#2e7d8a">passzív</text>';
+  $("wallSvg").innerHTML=g;
+  drawMom(r,yOf,Ltot);
+}
+function drawMom(r,yOf,Ltot){
+  const mL=44,mR=14, top=20, plotH=150-top-22, mid=top+plotH/2;
+  const sc=Math.min((plotH/2-6)/Math.max(r.Mmax,1),0.5);
+  const xOf=z=> mL+z/Ltot*(W-mL-mR);
+  let g='';
+  g+='<line x1="'+mL+'" y1="'+mid+'" x2="'+(W-mR)+'" y2="'+mid+'" stroke="#cfc8ba" stroke-width="1"/>';
+  let pp='M'+mL+' '+mid;
+  for(let i=0;i<r.n;i++){ const z=(i+0.5)*r.dz; pp+=' L'+xOf(z).toFixed(1)+' '+(mid - r.M[i]*sc).toFixed(1); }
+  pp+=' L'+(W-mR)+' '+mid+' Z';
+  g+='<path d="'+pp+'" fill="#3d5a80" fill-opacity="0.22" stroke="#3d5a80" stroke-width="1.6"/>';
+  g+='<text x="'+mL+'" y="14" font-family="JetBrains Mono" font-size="11" font-weight="700" fill="#3d5a80">fal nyomatéka M(z)</text>';
+  g+='<text x="'+(W-mR)+'" y="14" font-family="JetBrains Mono" font-size="10.5" fill="#39465a" text-anchor="end">M_max = '+r.Mmax.toFixed(0)+' kNm/m</text>';
+  $("momSvg").innerHTML=g;
+}
+
+/* ───────── állapot ───────── */
+const STAGES={
+ 1:{name:'1. fázis — kiemelés a horgonyzási szintig (konzol)',anchor:false,prop:false,he:s=>s.za},
+ 2:{name:'2. fázis — horgony beépítése és megfeszítése',anchor:true,prop:false,he:s=>s.za},
+ 3:{name:'3. fázis — teljes földkiemelés (MÉRTÉKADÓ)',anchor:true,prop:false,he:s=>s.H},
+ 4:{name:'4. fázis — födémek beépítése, horgony levágva',anchor:true,prop:true,he:s=>s.H}
+};
+function applyStage(st){ const c=STAGES[st]; anchorOn=c.anchor; propMode=c.prop; He=c.he(S); S.stage=st;
+  [...$("stageSeg").children].forEach(b=>b.setAttribute('aria-pressed', b.dataset.s==String(st))); }
+
+function update(){
+  $("hV").textContent=S.H.toFixed(1)+' m';$("dV").textContent=S.d.toFixed(1)+' m';
+  $("zaV").textContent=S.za.toFixed(2)+' m';$("alV").textContent=S.al+'°';
+  $("phiV").textContent=S.phi+'°';$("cV").textContent=S.c+' kPa';$("gV").textContent=S.gam.toFixed(1);$("qV").textContent=S.q+' kPa';
+  if(!playing) He=STAGES[S.stage].he(S);
+  const r=analyse(); draw(r);
+  $("stageName").textContent=STAGES[S.stage].name;
+  const fb = r.FS>=1.5?'<span class="fbadge safe">megfelel</span>':r.FS>=1?'<span class="fbadge safe">F≥1</span>':'<span class="fbadge unsafe">F&lt;1</span>';
+  $("statusBar").innerHTML=
+     '<div class="chip">K<sub>a</sub> = <b>'+r.Ka.toFixed(2)+'</b> · K<sub>p</sub> = <b>'+r.Kp.toFixed(1)+'</b></div>'
+    +'<div class="chip hot">aktív E<sub>a</sub> = <b>'+r.Ea.toFixed(0)+' kN/m</b></div>'
+    +'<div class="chip">passzív E<sub>p</sub> = <b>'+r.Ep.toFixed(0)+' kN/m</b></div>'
+    +(anchorOn?'<div class="chip" style="border-color:#dcc488;background:#f5ead0">horgonyerő A = <b>'+r.A.toFixed(0)+' kN/m</b></div>':'<div class="chip">horgony: <b>nincs</b></div>')
+    +'<div class="chip">befogás biztonság F = <b>'+(r.FS>=99?'∞':r.FS.toFixed(2))+'</b> '+fb+'</div>'
+    +'<div class="chip">M<sub>max</sub> = <b>'+r.Mmax.toFixed(0)+' kNm/m</b></div>';
+}
+
+/* ───────── vezérlők ───────── */
+const fmt={H:'hV',d:'dV',za:'zaV',al:'alV',phi:'phiV',c:'cV',gam:'gV',q:'qV'};
+function sync(){for(const k in fmt)$(k).value=S[k];}
+for(const k in fmt) $(k).addEventListener('input',e=>{S[k]=parseFloat(e.target.value); if(S.za>S.H-0.5)S.za=Math.max(0.5,S.H-0.5); update();});
+$("stageSeg").addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return; stopPlay(); applyStage(+b.dataset.s); update();});
+$("resetBtn").addEventListener('click',()=>{ stopPlay(); Object.assign(S,DEF); sync(); applyStage(3); update(); });
+
+/* ───────── építési menet animáció ───────── */
+let playing=false;
+function stopPlay(){ playing=false; if(playRAF)cancelAnimationFrame(playRAF); }
+$("playBtn").addEventListener('click',()=>{
+  stopPlay(); playing=true;
+  // 1: konzol a horgonyszintig → 2: horgony → 3: fokozatos teljes kiemelés
+  applyStage(1); update();
+  const t0=performance.now();
+  function step(now){ const t=(now-t0)/1000;
+    if(t<1.1){ applyStage(1); He=S.za; }
+    else if(t<2.2){ applyStage(2); He=S.za; }
+    else if(t<5.0){ anchorOn=true; propMode=false; S.stage=3;
+      [...$("stageSeg").children].forEach(b=>b.setAttribute('aria-pressed', b.dataset.s==='3'));
+      const p=(t-2.2)/2.8; He=S.za+(S.H-S.za)*Math.min(1,p); }     // gödör mélyítése
+    else { playing=false; applyStage(3); update(); return; }
+    update(); playRAF=requestAnimationFrame(step);
+  }
+  playRAF=requestAnimationFrame(step);
+});
+
+/* ───────── kvíz ───────── */
+const Q=[
+ {q:"Mi tartja vissza a horgonyzott résfalat az aktív földnyomással szemben?",o:["Csak a saját súlya","A befogás passzív ellenállása és a horgony","Csak a horgony","Csak a felszíni teher"],c:1,e:"A kiemelés alatti befogás passzív földellenállása és a fal tetejéhez közeli, előfeszített talajhorgony együtt tart ellen az aktív földnyomásnak."},
+ {q:"Hol ébred passzív földellenállás a résfalnál?",o:["A fal mögött, teljes magasságon","A munkagödör felőli oldalon, a kiemelési szint alatti befogásban","A horgony gyökerénél","A felszínen"],c:1,e:"A passzív ellenállás a munkagödör felőli oldalon, a kiemelési szint alatti befogott falszakasz előtt ébred — ez tartja meg a fal lábát."},
+ {q:"Miért a TELJES kiemelés a mértékadó fázis?",o:["Mert akkor a legmélyebb a gödör, így a befogás a legrövidebb → legnagyobb horgonyerő és nyomaték","Mert akkor a legolcsóbb","Mert akkor nincs horgony","Véletlenszerű"],c:0,e:"Ahogy mélyül a gödör, a befogás (a kiemelés alatti falszakasz) rövidül, a passzív ellenállás csökken, így a horgonyerő és a fal nyomatéka a teljes kiemelésnél a legnagyobb."},
+ {q:"A szabad megtámasztás (free earth support) modellben a horgonyerő vízszintes összetevője…",o:["A_h = E_a + E_p","A_h = E_a − E_p","A_h = E_p − E_a","A_h = 0"],c:1,e:"Vízszintes egyensúly: az aktív (E_a) és a passzív (E_p) földnyomás eredőjének különbségét veszi fel a horgony: A_h = E_a − E_p."},
+ {q:"Mit jelent a horgony „gyökere” (befogási hossza)?",o:["A horgonyfej","A szabad, nyújtható szakasz","Az injektált, talajba lehorgonyzó szakasz, ami a húzóerőt átadja a talajnak","A résfal lába"],c:2,e:"A gyökér (bond/befogási hossz) az injektált szakasz, amely súrlódással adja át a horgony húzóerejét a környező talajnak; előtte a szabad hossz nyújtható."},
+ {q:"Hogyan hat a φ′ növelése?",o:["Nő az aktív nyomás, csökken a passzív","Csökken az aktív nyomás, nő a passzív ellenállás","Nincs hatása","Csak a horgonyt érinti"],c:1,e:"Nagyobb φ′ → kisebb K_a (kisebb aktív nyomás) és nagyobb K_p (nagyobb passzív ellenállás) → kedvezőbb, kisebb horgonyerő, nagyobb befogás-biztonság."},
+ {q:"Mi történik, ha túl kicsi a befogás (d)?",o:["A fal megerősödik","A passzív ellenállás kevés → a fal lába kirúg, a fal elfordul","Nő a horgonyerő, de biztonságos","Semmi"],c:1,e:"Kis befogásnál a passzív ellenállás nem elég a horgony körüli nyomatéki egyensúlyhoz → a fal lába kirúg (befogás kimerülése), a biztonság 1 alá esik."},
+ {q:"Mekkorára feszítik rá az ideiglenes talajhorgonyt?",o:["A tervezési érték 50%-ára","Pontosan a tervezési értékre","A tervezési érték kb. 115%-ára (a veszteségeket pótolva)","Tetszőlegesen"],c:2,e:"Az ideiglenes horgonyt jellemzően a húzóerő tervezési értékének ~115%-ára feszítik rá (MSZ EN 1537), hogy a feszültségveszteségek után is megmaradjon a szükséges erő."},
+ {q:"Miért fontos a fal mögötti felszín monitorozása?",o:["Esztétikai okból","A lazuló földtömeg felszínsüllyedést okozhat → szomszédos épület/közmű károsodás","Nincs jelentősége","Csak a horgony miatt"],c:1,e:"A fal elmozdulása mögött a földtömeg fellazul, ami felszínsüllyedést okozhat — ez a környező épületeket, közműveket veszélyezteti, ezért a környezet elmozdulásait is mérik."},
+ {q:"A falsúrlódás (δ ≈ ⅔·φ′) figyelembevétele a passzív oldalon…",o:["csökkenti K_p-t","növeli K_p-t (nagyobb ellenállás)","nem számít","csak az aktív oldalt érinti"],c:1,e:"A talaj–fal súrlódás a passzív együtthatót (K_p) jelentősen megnöveli; a Rankine-közelítés (δ=0) ezt elhanyagolja, így a biztonság javára téved a passzív oldalon."}
+];
+let order=[],idx=0,score=0;
+function shf(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=(i*7+idx*13+5)%(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;}
+function show(){
+  const q=Q[order[idx]];
+  $("qCount").textContent=(idx+1)+" / "+Q.length;$("qScoreLive").textContent="Pont: "+score;
+  $("qProg").style.width=(idx/Q.length*100)+"%";$("qText").textContent=q.q;
+  $("qExpl").classList.remove('show');$("qNext").style.display='none';
+  const opts=shf(q.o.map((t,i)=>({t,ok:i===q.c})));
+  $("qOpts").innerHTML="";
+  opts.forEach(o=>{const b=document.createElement('button');b.className='quiz-opt';b.textContent=o.t;b.dataset.ok=o.ok?"1":"0";
+    b.addEventListener('click',()=>{[...$("qOpts").children].forEach(x=>x.disabled=true);
+      if(o.ok){b.classList.add('correct');score++;}else{b.classList.add('wrong');[...$("qOpts").children].find(x=>x.dataset.ok==="1").classList.add('correct');}
+      $("qScoreLive").textContent="Pont: "+score;$("qExpl").innerHTML="<b>Magyarázat:</b> "+q.e;$("qExpl").classList.add('show');
+      $("qNext").style.display='inline-block';$("qNext").textContent=idx<Q.length-1?"Következő →":"Eredmény →";});
+    $("qOpts").appendChild(b);});
+}
+$("qNext").addEventListener('click',()=>{idx++;if(idx<Q.length)show();else{
+  $("quizMain").style.display='none';$("quizResult").style.display='block';$("qProg").style.width='100%';
+  $("qFinal").textContent=score+" / "+Q.length;
+  const rr=score/Q.length;$("qMsg").textContent=rr>=0.9?"Kiváló! A horgonyzott résfal statikája a kisujjadban van.":rr>=0.7?"Szép munka! Egy-két részlet még csiszolható.":rr>=0.5?"Jó alap. Játssz még a szimulátorral, és próbáld újra.":"Nézd át az alapokat, és próbáld újra — a szimulátor sokat segít!";}});
+$("qRestart").addEventListener('click',()=>{idx=0;score=0;order=shf([...Q.keys()]);$("quizMain").style.display='block';$("quizResult").style.display='none';show();});
+order=[...Q.keys()];show();
+
+/* init */
+sync(); applyStage(3); update();
+
+/* nav + reveal */
+(function(){const links=[...document.querySelectorAll('.nav-link')];
+  if(typeof IntersectionObserver==='undefined'){document.querySelectorAll('.reveal').forEach(el=>el.classList.add('in'));return;}
+  const ro=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in');}),{threshold:.12});
+  document.querySelectorAll('.reveal').forEach(el=>ro.observe(el));
+  const so=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){const id=e.target.id;links.forEach(l=>l.classList.toggle('active',l.getAttribute('href')==='#'+id));}}),{rootMargin:'-45% 0px -50% 0px'});
+  document.querySelectorAll('section').forEach(s=>so.observe(s));
+})();
+</script>
+<script>
+/* Magyar tipográfia — automatikus sortörés-szabályok */
+(function(){
+  "use strict";
+  var NBSP=' ', WJ='⁠';
+  function fix(s){
+    s=s.replace(/([.!?…][)"'»”’]?\s+\S+) (?=\S)/g,'$1'+NBSP);
+    s=s.replace(/(^|[\s(„"'«»–—])(a|az|s|e|é|és|is) (?=\S)/gi,'$1$2'+NBSP);
+    s=s.replace(/ (?=[=+−·×<>≈≥≤≠\/])/g,NBSP);
+    s=s.replace(/([=+−·×<>≈≥≤≠\/]) /g,'$1'+NBSP);
+    s=s.replace(/(\d) (?=(?:kPa|MPa|GPa|kN\/m³|kN\/m²|kN\/m|kN|kNm\/m|kNm|m³|m²|m\/s|cm|mm|km|kg|°C|°|%|m|t|óra|nap|hét|hónap|év)(?:[\s.,;:!?)\]–—]|$))/g,'$1'+NBSP);
+    s=s.replace(/([0-9A-Za-zÀ-ſ])([\-–—])([0-9A-Za-zÀ-ſ])/g,'$1'+WJ+'$2'+WJ+'$3');
+    return s;
+  }
+  var SKIP={SCRIPT:1,STYLE:1,CODE:1,PRE:1,KBD:1,SAMP:1,INPUT:1,TEXTAREA:1,SELECT:1,OPTION:1,NOSCRIPT:1};
+  function walk(el){ if(!el)return;
+    for(var n=el.firstChild;n;n=n.nextSibling){
+      if(n.nodeType===3){ var t=n.nodeValue; if(t&&/\S/.test(t)){ var nt=fix(t); if(nt!==t)n.nodeValue=nt; } }
+      else if(n.nodeType===1){ var tag=n.tagName?n.tagName.toUpperCase():''; if(SKIP[tag])continue;
+        if(n.namespaceURI==='http://www.w3.org/2000/svg')continue;
+        if(n.classList&&n.classList.contains('nowrap'))continue; walk(n); }
+    }
+  }
+  function across(root){ if(!root||!document.createTreeWalker)return;
+    var SHORT=/(^|[\s„"'(»–—])(a|az|s|e|é|és|is) $/i, w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null), arr=[], x;
+    while(x=w.nextNode()){var p=x.parentNode,sk=false;while(p&&p.nodeType===1){var tg=p.tagName?p.tagName.toUpperCase():'';if(SKIP[tg]||p.namespaceURI==='http://www.w3.org/2000/svg'){sk=true;break;}p=p.parentNode;}if(!sk&&/\S/.test(x.nodeValue))arr.push(x);}
+    for(var i=0;i<arr.length-1;i++){var v=arr[i].nodeValue;if(SHORT.test(v)){var nv=arr[i+1].nodeValue;if(/^[^\s]/.test(nv))arr[i].nodeValue=v.replace(/ $/,NBSP);else if(/^ /.test(nv)){arr[i].nodeValue=v.replace(/ $/,NBSP);arr[i+1].nodeValue=nv.replace(/^ +/,'');}}}
+  }
+  function typo(el){ el=el||document.body; if(!el)return; walk(el); across(el); }
+  window.__typo=typo;
+  function run(){ typo(document.body); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',run); else run();
+  setInterval(function(){ ['qText','qOpts','qExpl','statusBar','stageName'].forEach(function(id){var el=document.getElementById(id); if(el)typo(el);}); },400);
+})();
+</script>
+</body>
+</html>
