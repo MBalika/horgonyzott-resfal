@@ -312,7 +312,7 @@ function draw(r){
   g+='<rect x="'+wx0+'" y="'+top+'" width="'+(wx1-wx0)+'" height="'+plotH+'" fill="#9aa3ad" stroke="#5f6973" stroke-width="1.2"/>';
   // HORGONY vagy FÖDÉMTÁMASZ
   if(anchorOn && !propMode){
-    const yA=yOf(S.za), ax=wx1, ang=-S.al*D;
+    const yA=yOf(S.za), ax=wx1, ang=S.al*D;   // lefelé dől a talajba (α a vízszintes alatt)
     const L1=120, L2=70;                              // szabad + gyökérhossz (kép)
     const x1=ax+L1*Math.cos(ang), y1=yA+L1*Math.sin(ang);
     const x2=x1+L2*Math.cos(ang), y2=y1+L2*Math.sin(ang);
